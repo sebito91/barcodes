@@ -17,7 +17,13 @@ def barcode_it(product, sku, path):
 
     ean = barcode.get('ean13', sku.replace('-', ''))
 
-    return bool(ean.save(''.join([path, '_'.join([product.replace(' ', '_'), sku])])))
+    try:
+        return bool(ean.save(''.join([path, '_'.join([product.replace(' ', '_'), sku])])))
+    except IOError:
+        print "ERROR -- path name is incorrect -- path: {}, prod: {}, sku: {}".format(\
+                path, product, sku)
+
+    return False
 
 def run_it():
     """ handle the function """
@@ -34,26 +40,32 @@ def run_it():
     only_files = [f for f in os.listdir(files_raw) if os.path.isfile( \
             os.path.join(files_raw, f))]
 
-    #print "DEBUG -- files: {}, {}, {}".format(files, files_raw, only_files)
+    vendors = {f.split('.')[0]: f for f in only_files if '.csv' in f and not "~" in f}
 
-    output = defaultdict(list)
+    print "DEBUG -- files: {}, {}".format(vendors, only_files)
 
-    for each in only_files:
+
+    output = defaultdict(lambda: defaultdict(list))
+
+    for vendor, each in vendors.iteritems():
         with open(files_raw + each) as csvfile:
             reader = csv.reader(csvfile)
 
-            output = {row[2]: row[1].split('\n') for row in reader \
-                    if len(row[2]) > 0 and 'Name' not in row[2]}
+            output[vendor] = {row[2]: row[1].split('\n') for row in reader \
+                    if len(row) > 1 and len(row[2]) > 0 and 'Name' not in row[2]}
 
     #print "DEBUG -- finished reading files"
-    pprint(output)
-    failed = []
+    failed = defaultdict(list)
 
-    for each, val in output.iteritems():
-        failed += [(each, item) for item in val if not \
-                barcode_it(each, item, ''.join([files, "/velveteen/"]))]
+    print "DEBUG -- output: {}".format(output)
 
-    print "DEBUG -- done with gens, failed: {}".format(failed)
+    for vendor in output:
+        print "DEBUG -- handling {}".format(vendor)
+        for each, val in output[vendor].iteritems():
+            failed[vendor] = [(each, item) for item in val if not \
+                    barcode_it(each, item, ''.join([files, "/", vendor, "/"]))]
+
+    print "DEBUG -- done with barcode generation, failed: {}".format(failed)
 
 if __name__ == "__main__":
     run_it()
