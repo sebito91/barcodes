@@ -9,13 +9,15 @@ import csv
 import os
 
 import barcode
+from barcode.writer import ImageWriter
 
 def barcode_it(product, sku, path):
     """ barcode all the things """
     if len(sku) < 1:
         return False
 
-    ean = barcode.get('ean13', sku.replace('-', ''))
+    # update to save as png
+    ean = barcode.get('ean13', sku.replace('-', ''), writer=ImageWriter())
 
     try:
         return bool(ean.save(''.join([path, '_'.join([product.replace(' ', '_'), sku])])))
