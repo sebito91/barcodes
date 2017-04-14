@@ -9,18 +9,21 @@ import csv
 import os
 
 import barcode
-from barcode.writer import ImageWriter
 
 def barcode_it(product, sku, path):
     """ barcode all the things """
     if len(sku) < 1:
         return False
 
-    # update to save as png
-    ean = barcode.get('ean13', sku.replace('-', ''), writer=ImageWriter())
+    # saving this as svg, we'll replace via ImageMagick later
+    ean = barcode.get('ean13', sku.replace('-', ''))
+
+    barcode_text = '_'.join([product.strip().replace(' ', '_'), sku])
+    filename = ''.join([path, barcode_text])
 
     try:
-        return bool(ean.save(''.join([path, '_'.join([product.replace(' ', '_'), sku])])))
+        return bool(ean.save(filename, \
+                options={'module_width': barcode.ean.SIZES['SC9']}, text=barcode_text))
     except IOError:
         print "ERROR -- path name is incorrect -- path: {}, prod: {}, sku: {}".format(\
                 path, product, sku)
@@ -29,7 +32,6 @@ def barcode_it(product, sku, path):
 
 def run_it():
     """ handle the function """
-    print "DEBUG -- testing velveteen"
     files = os.path.dirname(os.path.abspath(__file__))
     if not files:
         raise ValueError("could not find path for sources")
@@ -44,8 +46,7 @@ def run_it():
 
     vendors = {f.split('.')[0]: f for f in only_files if '.csv' in f and not "~" in f}
 
-    print "DEBUG -- files: {}, {}".format(vendors, only_files)
-
+    #print "DEBUG -- files: {}, {}".format(vendors, only_files)
 
     output = defaultdict(lambda: defaultdict(list))
 
@@ -59,7 +60,7 @@ def run_it():
     #print "DEBUG -- finished reading files"
     failed = defaultdict(list)
 
-    print "DEBUG -- output: {}".format(output)
+    #print "DEBUG -- output: {}".format(output)
 
     for vendor in output:
         print "DEBUG -- handling {}".format(vendor)
@@ -67,7 +68,7 @@ def run_it():
             failed[vendor] = [(each, item) for item in val if not \
                     barcode_it(each, item, ''.join([files, "/", vendor, "/"]))]
 
-    print "DEBUG -- done with barcode generation, failed: {}".format(failed)
+    print "INFO -- done with barcode generation, failed: {}".format(failed)
 
 if __name__ == "__main__":
     run_it()
